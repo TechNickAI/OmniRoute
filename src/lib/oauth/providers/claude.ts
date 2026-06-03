@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { CLAUDE_CONFIG } from "../constants/oauth";
 import { CLAUDE_CODE_VERSION } from "@omniroute/open-sse/executors/claudeIdentity.ts";
+import { claudeCliUserAgent } from "@omniroute/open-sse/config/anthropicHeaders.ts";
 
 const BOOTSTRAP_FETCH_TIMEOUT_MS = 10_000;
 
@@ -14,7 +15,7 @@ async function fetchClaudeBootstrap(accessToken) {
       headers: {
         Authorization: `Bearer ${accessToken}`,
         Accept: "application/json",
-        "User-Agent": `claude-cli/${CLAUDE_CODE_VERSION} (external, cli)`,
+        "User-Agent": claudeCliUserAgent(CLAUDE_CODE_VERSION),
         "anthropic-beta": "oauth-2025-04-20",
       },
       signal: ctrl.signal,
