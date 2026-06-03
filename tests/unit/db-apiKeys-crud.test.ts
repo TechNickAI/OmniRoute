@@ -44,6 +44,19 @@ async function resetStorage() {
 
 await resetStorage();
 
+// Release the SQLite handle and remove the temp data dir after the suite, or
+// Node's native test runner hangs on the open DB connection (see CLAUDE.md
+// "Database Handles in Tests").
+test.after(() => {
+  core.resetDbInstance();
+  apiKeys.resetApiKeyState();
+  try {
+    fs.rmSync(TEST_DATA_DIR, { recursive: true, force: true });
+  } catch {
+    // best-effort temp cleanup
+  }
+});
+
 // ──────────────── createApiKey ────────────────
 
 test("createApiKey creates a key and returns it with id, key, name, machineId", async () => {
@@ -65,10 +78,9 @@ test("createApiKey with scopes stores them", async () => {
 
 test("createApiKey rejects empty machineId", async () => {
   await resetStorage();
-  await assert.rejects(
-    () => apiKeys.createApiKey("Bad Key", ""),
-    { message: /machineId is required/i }
-  );
+  await assert.rejects(() => apiKeys.createApiKey("Bad Key", ""), {
+    message: /machineId is required/i,
+  });
 });
 
 // ──────────────── getApiKeys ────────────────
@@ -338,7 +350,10 @@ test("updateApiKeyPermissions clears accessSchedule with null", async () => {
 test("updateApiKeyPermissions sets rateLimits", async () => {
   await resetStorage();
   const created = await apiKeys.createApiKey("Rate Limited", "ma-026");
-  const limits = [{ limit: 100, window: 60 }, { limit: 1000, window: 3600 }];
+  const limits = [
+    { limit: 100, window: 60 },
+    { limit: 1000, window: 3600 },
+  ];
   await apiKeys.updateApiKeyPermissions(created.id, { rateLimits: limits });
   const loaded = await apiKeys.getApiKeyById(created.id);
   assert.deepEqual(loaded!.rateLimits, limits);
@@ -539,4 +554,156 @@ test("matchesWildcardPattern multiple segments with wildcards", async () => {
   assert.equal(await apiKeys.isModelAllowedForKey(created.key, "openai/gpt-4/turbo"), true);
   assert.equal(await apiKeys.isModelAllowedForKey(created.key, "openai/gpt-5/turbo"), true);
   assert.equal(await apiKeys.isModelAllowedForKey(created.key, "openai/gpt-4"), false);
+});
+
+// ──────────────── ported from legacy db-apikeys-crud.test.ts ────────────────
+// Consolidated here when the case-variant duplicate test file was removed.
+// Preserves coverage the superset above lacked: malformed schedule payloads,
+// throttle/maxRequests scalar fields, streamDefaultMode, allowedCombos,
+// negative maxSessions clamping, scope-clearing, and createApiKey defaults.
+
+test("createApiKey requires machineId and returns a persisted key with defaults", async () => {
+  await resetStorage();
+  await assert.rejects(() => apiKeys.createApiKey("missing-machine", ""), /machineId is required/);
+
+  const created = await apiKeys.createApiKey("Primary Key", "machine-303");
+  const allKeys = await apiKeys.getApiKeys();
+  const byId = await apiKeys.getApiKeyById(created.id);
+
+  assert.match(created.key, /^sk-machine-303-/);
+  assert.equal(allKeys.length, 1);
+  assert.equal(allKeys[0].name, "Primary Key");
+  assert.deepEqual(allKeys[0].allowedModels, []);
+  assert.deepEqual(byId.allowedConnections, []);
+  assert.equal(byId.noLog, false);
+  assert.equal(byId.autoResolve, false);
+  assert.equal(byId.isActive, true);
+  assert.equal(byId.maxSessions, 0);
+  assert.equal(byId.streamDefaultMode, "legacy");
+});
+
+test("updateApiKeyPermissions persists settings, schedule and rate limits", async () => {
+  await resetStorage();
+  const created = await apiKeys.createApiKey("Scoped Key", "machine-303");
+  const schedule = {
+    enabled: true,
+    from: "09:00",
+    until: "18:00",
+    days: [1, 2, 3, 4, 5],
+    tz: "America/Sao_Paulo",
+  };
+
+  const updated = await apiKeys.updateApiKeyPermissions(created.id, {
+    name: "Scoped Key v2",
+    allowedModels: ["openai/*", "anthropic/claude-*"],
+    allowedCombos: ["fast-chat", "combo/reasoning"],
+    allowedConnections: ["550e8400-e29b-41d4-a716-446655440000"],
+    noLog: true,
+    autoResolve: true,
+    isActive: false,
+    accessSchedule: schedule,
+    maxRequestsPerDay: 1000,
+    maxRequestsPerMinute: 15,
+    throttleDelayMs: 250,
+    maxSessions: -3,
+    streamDefaultMode: "json",
+  });
+  const row = await apiKeys.getApiKeyById(created.id);
+  const metadata = await apiKeys.getApiKeyMetadata(created.key);
+
+  assert.equal(updated, true);
+  assert.equal(row.name, "Scoped Key v2");
+  assert.deepEqual(row.allowedModels, ["openai/*", "anthropic/claude-*"]);
+  assert.deepEqual(row.allowedCombos, ["fast-chat", "combo/reasoning"]);
+  assert.deepEqual(row.allowedConnections, ["550e8400-e29b-41d4-a716-446655440000"]);
+  assert.equal(row.noLog, true);
+  assert.equal(row.autoResolve, true);
+  assert.equal(row.isActive, false);
+  assert.deepEqual(row.accessSchedule, schedule);
+  assert.equal(metadata.maxRequestsPerDay, 1000);
+  assert.equal(metadata.maxRequestsPerMinute, 15);
+  assert.equal(metadata.throttleDelayMs, 250);
+  assert.equal(metadata.maxSessions, 0);
+  assert.equal(row.streamDefaultMode, "json");
+  assert.equal(metadata.streamDefaultMode, "json");
+});
+
+test("validateApiKey and deleteApiKey stay consistent after cache invalidation", async () => {
+  await resetStorage();
+  const created = await apiKeys.createApiKey("Delete Me", "machine-303");
+
+  assert.equal(await apiKeys.validateApiKey(created.key), true);
+  assert.equal(await apiKeys.deleteApiKey("missing-id"), false);
+  assert.equal(await apiKeys.deleteApiKey(created.id), true);
+  assert.equal(await apiKeys.validateApiKey(created.key), false);
+  assert.equal(await apiKeys.getApiKeyById(created.id), null);
+  assert.equal(await apiKeys.getApiKeyMetadata(created.key), null);
+});
+
+test("isModelAllowedForKey supports exact, prefix and wildcard rules", async () => {
+  await resetStorage();
+  const unrestricted = await apiKeys.createApiKey("Unrestricted", "machine-303");
+  const restricted = await apiKeys.createApiKey("Restricted", "machine-303");
+
+  await apiKeys.updateApiKeyPermissions(restricted.id, {
+    allowedModels: ["openai/*", "anthropic/claude-*", "o*-mini"],
+  });
+
+  assert.equal(await apiKeys.isModelAllowedForKey(null, "any/model"), true);
+  assert.equal(await apiKeys.isModelAllowedForKey(restricted.key, null), false);
+  assert.equal(await apiKeys.isModelAllowedForKey("sk-invalid", "openai/gpt-4.1"), false);
+  assert.equal(await apiKeys.isModelAllowedForKey(unrestricted.key, "provider/any-model"), true);
+  assert.equal(await apiKeys.isModelAllowedForKey(restricted.key, "openai/gpt-4.1"), true);
+  assert.equal(
+    await apiKeys.isModelAllowedForKey(restricted.key, "anthropic/claude-3-7-sonnet"),
+    true
+  );
+  assert.equal(await apiKeys.isModelAllowedForKey(restricted.key, "o3-mini"), true);
+  assert.equal(await apiKeys.isModelAllowedForKey(restricted.key, "gemini/gemini-2.5-pro"), false);
+});
+
+test("getApiKeyMetadata ignores malformed stored schedule payloads", async () => {
+  await resetStorage();
+  const created = await apiKeys.createApiKey("Malformed Schedule", "machine-303");
+  const db = core.getDbInstance();
+
+  db.prepare("UPDATE api_keys SET access_schedule = ? WHERE id = ?").run("not-json", created.id);
+  apiKeys.clearApiKeyCaches();
+
+  const metadata = await apiKeys.getApiKeyMetadata(created.key);
+
+  assert.equal(metadata.accessSchedule, null);
+});
+
+test("createApiKey persists scopes and getApiKeyMetadata reads them back", async () => {
+  await resetStorage();
+  const key = await apiKeys.createApiKey("Manage Key", "machine-303", ["manage"]);
+  const metadata = await apiKeys.getApiKeyMetadata(key.key);
+
+  assert.ok(metadata);
+  assert.deepEqual(metadata.scopes, ["manage"]);
+  assert.deepEqual(key.scopes, ["manage"]);
+});
+
+test("updateApiKeyPermissions persists scopes and getApiKeyMetadata reads them back", async () => {
+  await resetStorage();
+  const key = await apiKeys.createApiKey("Plain Key", "machine-303");
+  const metaBefore = await apiKeys.getApiKeyMetadata(key.key);
+  assert.deepEqual(metaBefore.scopes, []);
+
+  await apiKeys.updateApiKeyPermissions(key.id, { scopes: ["manage"] });
+  apiKeys.clearApiKeyCaches();
+
+  const metaAfter = await apiKeys.getApiKeyMetadata(key.key);
+  assert.deepEqual(metaAfter.scopes, ["manage"]);
+});
+
+test("updateApiKeyPermissions can clear scopes back to empty", async () => {
+  await resetStorage();
+  const key = await apiKeys.createApiKey("Admin Key", "machine-303", ["manage"]);
+  await apiKeys.updateApiKeyPermissions(key.id, { scopes: [] });
+  apiKeys.clearApiKeyCaches();
+
+  const metadata = await apiKeys.getApiKeyMetadata(key.key);
+  assert.deepEqual(metadata.scopes, []);
 });
