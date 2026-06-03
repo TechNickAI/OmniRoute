@@ -52,6 +52,7 @@ import {
   stainlessRuntimeVersion,
   stripProxyToolPrefix,
 } from "./claudeIdentity.ts";
+import { getClaudeEntrypoint, claudeCliUserAgent } from "../config/anthropicHeaders.ts";
 
 /**
  * Sanitizes a custom API path to prevent path traversal attacks.
@@ -949,7 +950,7 @@ export class BaseExecutor {
           // cache_control — that belongs on upstream prompt blocks at [2..].
           const dayStamp = new Date().toISOString().slice(0, 10);
           const buildHash = buildHashFor(CLAUDE_CODE_VERSION, dayStamp);
-          const billingLine = `x-anthropic-billing-header: cc_version=${CLAUDE_CODE_VERSION}.${buildHash}; cc_entrypoint=cli; cch=00000;`;
+          const billingLine = `x-anthropic-billing-header: cc_version=${CLAUDE_CODE_VERSION}.${buildHash}; cc_entrypoint=${getClaudeEntrypoint()}; cch=00000;`;
           const SENTINEL = "You are Claude Code, Anthropic's official CLI for Claude.";
 
           const sysBlocks: Array<Record<string, unknown>> = Array.isArray(tb.system)
@@ -1009,7 +1010,7 @@ export class BaseExecutor {
             "anthropic-beta": selectBetaFlags(tb),
             "anthropic-dangerous-direct-browser-access": "true",
             "x-app": "cli",
-            "User-Agent": `claude-cli/${CLAUDE_CODE_VERSION} (external, cli)`,
+            "User-Agent": claudeCliUserAgent(CLAUDE_CODE_VERSION),
             "X-Stainless-Package-Version": CLAUDE_CODE_STAINLESS_VERSION,
             "X-Stainless-Timeout": "600",
             "accept-encoding": "gzip, deflate, br, zstd",
