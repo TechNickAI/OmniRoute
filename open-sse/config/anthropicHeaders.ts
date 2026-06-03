@@ -1,4 +1,5 @@
 import {
+  type ClaudeCodeEntrypoint,
   CLAUDE_CODE_CLIENT_BILLING_VERSION,
   CLAUDE_CODE_CLIENT_BUILD_REVISION,
   CLAUDE_CODE_CLIENT_VERSION,
@@ -150,6 +151,50 @@ export function normalizeAnthropicHeaderVariants(headers: Record<string, string>
 export const CLAUDE_CLI_VERSION = CLAUDE_CODE_CLIENT_VERSION;
 export const CLAUDE_CLI_BUILD_REVISION = CLAUDE_CODE_CLIENT_BUILD_REVISION;
 export const CLAUDE_CLI_BILLING_VERSION = CLAUDE_CODE_CLIENT_BILLING_VERSION;
-export const CLAUDE_CLI_USER_AGENT = getClaudeCodeUserAgent("cli");
+
+/**
+ * Anthropic billing "entrypoint" label sent on native Claude OAuth requests:
+ * the `cc_entrypoint=` field of `x-anthropic-billing-header` and the
+ * `(external, <entrypoint>)` suffix of the claude-cli User-Agent.
+ *
+ * - `cli`     — mirrors the official Claude Code CLI (default; current behavior).
+ * - `sdk-cli` — mirrors the Claude Agent SDK.
+ *
+ * Anthropic currently meters some `cli`-labelled third-party OAuth traffic
+ * against the account's *extra usage* balance instead of plan limits
+ * (see anthropics/claude-code#45203). Operators whose subscription requests get
+ * rejected with "You're out of extra usage" can set `CLAUDE_CC_ENTRYPOINT=sdk-cli`
+ * to route through the Agent SDK entrypoint, which is currently classified as
+ * plan usage.
+ *
+ * FORK PATCH (CLAUDE_CC_ENTRYPOINT). Upstream >=3.8.49 owns the wire constants
+ * and the `ClaudeCodeEntrypoint` type + `getClaudeCodeUserAgent(entrypoint)`
+ * builder; this only adds the env-var override on top of them.
+ */
+export type ClaudeEntrypoint = ClaudeCodeEntrypoint;
+const VALID_CLAUDE_ENTRYPOINTS: readonly ClaudeEntrypoint[] = ["cli", "sdk-cli"];
+let warnedInvalidClaudeEntrypoint = false;
+
+export function getClaudeEntrypoint(): ClaudeEntrypoint {
+  const raw = process.env.CLAUDE_CC_ENTRYPOINT?.trim();
+  if (!raw) return "cli";
+  if ((VALID_CLAUDE_ENTRYPOINTS as readonly string[]).includes(raw)) {
+    return raw as ClaudeEntrypoint;
+  }
+  if (!warnedInvalidClaudeEntrypoint) {
+    warnedInvalidClaudeEntrypoint = true;
+    console.warn(
+      `[claude] Ignoring invalid CLAUDE_CC_ENTRYPOINT="${raw}" (expected "cli" or "sdk-cli"); using "cli".`
+    );
+  }
+  return "cli";
+}
+
+/** Builds the claude-cli User-Agent with the configured entrypoint suffix. */
+export function claudeCliUserAgent(): string {
+  return getClaudeCodeUserAgent(getClaudeEntrypoint());
+}
+
+export const CLAUDE_CLI_USER_AGENT = claudeCliUserAgent();
 export const CLAUDE_CLI_STAINLESS_PACKAGE_VERSION = CLAUDE_CODE_SDK_PACKAGE_VERSION;
 export const CLAUDE_CLI_STAINLESS_RUNTIME_VERSION = CLAUDE_CODE_RUNTIME_VERSION;
