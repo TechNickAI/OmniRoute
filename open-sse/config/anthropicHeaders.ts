@@ -195,6 +195,8 @@ export function claudeCliUserAgent(): string {
   return getClaudeCodeUserAgent(getClaudeEntrypoint());
 }
 
-export const CLAUDE_CLI_USER_AGENT = claudeCliUserAgent();
+// Static registry/API-key identity remains the official CLI wire image.
+// CLAUDE_CC_ENTRYPOINT applies only at native Claude OAuth call sites.
+export const CLAUDE_CLI_USER_AGENT = getClaudeCodeUserAgent("cli");
 export const CLAUDE_CLI_STAINLESS_PACKAGE_VERSION = CLAUDE_CODE_SDK_PACKAGE_VERSION;
 export const CLAUDE_CLI_STAINLESS_RUNTIME_VERSION = CLAUDE_CODE_RUNTIME_VERSION;
