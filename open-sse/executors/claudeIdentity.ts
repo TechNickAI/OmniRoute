@@ -157,7 +157,7 @@ export async function fetchClaudeBootstrap(accessToken: string): Promise<ClaudeB
       headers: {
         Authorization: `Bearer ${accessToken}`,
         Accept: "application/json",
-        "User-Agent": claudeCliUserAgent(CLAUDE_CODE_VERSION),
+        "User-Agent": claudeCliUserAgent(),
         "anthropic-beta": "oauth-2025-04-20",
       },
       signal: ctrl.signal,
