@@ -26,11 +26,13 @@ export interface DatabaseStats {
 
 /**
  * `dbstat` is a compile-time-optional SQLite virtual table (ENABLE_DBSTAT_VTAB).
- * It is unavailable on sql.js/WASM and on any build compiled without it, where
- * querying it throws "no such module: dbstat" (some drivers report "no such
- * table: dbstat"). Per-table byte sizes are a nice-to-have, so probe once and
- * degrade to 0 rather than failing the whole stats call — and with it every
- * caller, including the database settings API.
+ * Builds without it — sql.js/WASM among them — reject the query with either
+ * "no such module: dbstat" or "no such table: dbstat" depending on the build,
+ * and drivers prefix their error class onto the message, so match loosely.
+ *
+ * Per-table byte sizes are a nice-to-have, so probe once and degrade to 0
+ * rather than failing the whole stats call — and with it every caller,
+ * including the database settings API.
  */
 function isDbstatAvailable(db: SqliteAdapter): boolean {
   try {
