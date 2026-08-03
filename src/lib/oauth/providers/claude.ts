@@ -15,7 +15,7 @@ async function fetchClaudeBootstrap(accessToken) {
       headers: {
         Authorization: `Bearer ${accessToken}`,
         Accept: "application/json",
-        "User-Agent": claudeCliUserAgent(CLAUDE_CODE_VERSION),
+        "User-Agent": claudeCliUserAgent(),
         "anthropic-beta": "oauth-2025-04-20",
       },
       signal: ctrl.signal,

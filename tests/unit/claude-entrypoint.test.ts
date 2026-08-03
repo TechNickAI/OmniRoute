@@ -1,6 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { getClaudeEntrypoint, claudeCliUserAgent } from "../../open-sse/config/anthropicHeaders.ts";
+import {
+  CLAUDE_CLI_VERSION,
+  getClaudeEntrypoint,
+  claudeCliUserAgent,
+} from "../../open-sse/config/anthropicHeaders.ts";
 
 const ORIGINAL = process.env.CLAUDE_CC_ENTRYPOINT;
 
@@ -18,14 +22,14 @@ function withEntrypoint(value: string | undefined, fn: () => void) {
 test("getClaudeEntrypoint defaults to cli when unset", () => {
   withEntrypoint(undefined, () => {
     assert.equal(getClaudeEntrypoint(), "cli");
-    assert.equal(claudeCliUserAgent("2.1.158"), "claude-cli/2.1.158 (external, cli)");
+    assert.equal(claudeCliUserAgent(), `claude-cli/${CLAUDE_CLI_VERSION} (external, cli)`);
   });
 });
 
 test("getClaudeEntrypoint honors sdk-cli (cc_entrypoint + UA stay consistent)", () => {
   withEntrypoint("sdk-cli", () => {
     assert.equal(getClaudeEntrypoint(), "sdk-cli");
-    assert.equal(claudeCliUserAgent("2.1.158"), "claude-cli/2.1.158 (external, sdk-cli)");
+    assert.equal(claudeCliUserAgent(), `claude-cli/${CLAUDE_CLI_VERSION} (external, sdk-cli)`);
   });
 });
 
@@ -44,6 +48,6 @@ test("getClaudeEntrypoint trims surrounding whitespace", () => {
 test("getClaudeEntrypoint falls back to cli on an invalid value", () => {
   withEntrypoint("bogus", () => {
     assert.equal(getClaudeEntrypoint(), "cli");
-    assert.equal(claudeCliUserAgent("2.1.158"), "claude-cli/2.1.158 (external, cli)");
+    assert.equal(claudeCliUserAgent(), `claude-cli/${CLAUDE_CLI_VERSION} (external, cli)`);
   });
 });
