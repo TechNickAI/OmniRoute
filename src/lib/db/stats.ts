@@ -24,6 +24,26 @@ export interface DatabaseStats {
   cacheSize: number;
 }
 
+/**
+ * `dbstat` is a compile-time-optional SQLite virtual table (ENABLE_DBSTAT_VTAB).
+ * It is unavailable on sql.js/WASM and on any build compiled without it, where
+ * querying it throws "no such module: dbstat" (some drivers report "no such
+ * table: dbstat"). Per-table byte sizes are a nice-to-have, so probe once and
+ * degrade to 0 rather than failing the whole stats call — and with it every
+ * caller, including the database settings API.
+ */
+function isDbstatAvailable(db: SqliteAdapter): boolean {
+  try {
+    db.prepare(`SELECT SUM(pgsize) as size FROM dbstat WHERE name = ?`).get("sqlite_master");
+    return true;
+  } catch (error) {
+    if (error instanceof Error && /no such (module|table): dbstat/i.test(error.message)) {
+      return false;
+    }
+    throw error;
+  }
+}
+
 export function getDatabaseStats(db: SqliteAdapter = getDbInstance()): DatabaseStats {
   const pageSize = db.pragma("page_size", { simple: true }) as number;
   const pageCount = db.pragma("page_count", { simple: true }) as number;
@@ -36,12 +56,15 @@ export function getDatabaseStats(db: SqliteAdapter = getDbInstance()): DatabaseS
     )
     .all() as Array<{ name: string }>;
 
+  const dbstatAvailable = isDbstatAvailable(db);
+
   const tableStats = tables.map((table) => {
     let rowCount = 0;
     try {
       const quotedName = `"${table.name.replaceAll('"', '""')}"`;
       const row = db.prepare(`SELECT COUNT(*) as count FROM ${quotedName}`).get() as
-        { count: number } | undefined;
+        | { count: number }
+        | undefined;
       rowCount = row?.count ?? 0;
     } catch (error) {
       if (!(error instanceof Error) || !error.message.startsWith("no such module:")) {
@@ -50,14 +73,18 @@ export function getDatabaseStats(db: SqliteAdapter = getDbInstance()): DatabaseS
       // Optional virtual-table modules may be unavailable on this connection.
     }
 
-    const tableSize = db
-      .prepare(`SELECT SUM(pgsize) as size FROM dbstat WHERE name = ?`)
-      .get(table.name) as { size: number | null };
+    let size = 0;
+    if (dbstatAvailable) {
+      const tableSize = db
+        .prepare(`SELECT SUM(pgsize) as size FROM dbstat WHERE name = ?`)
+        .get(table.name) as { size: number | null } | undefined;
+      size = tableSize?.size || 0;
+    }
 
     return {
       name: table.name,
       rowCount,
-      size: tableSize?.size || 0,
+      size,
     };
   });
 
