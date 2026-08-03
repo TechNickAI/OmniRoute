@@ -1330,6 +1330,12 @@ export class BaseExecutor {
         }
 
         mergeUpstreamExtraHeaders(finalHeaders, upstreamExtraHeaders);
+        // The OAuth billing entrypoint and Claude CLI User-Agent are one wire
+        // identity. Operator/model extra headers are merged above for all
+        // providers, but must not split those two fields on native Claude OAuth.
+        if (this.provider === "claude" && hasClaudeOAuthToken) {
+          setUserAgentHeader(finalHeaders, claudeCliUserAgent());
+        }
         if (this.provider === "cline" || this.provider === "clinepass") {
           applyClineProtocolHeaders(finalHeaders, {
             taskId: headers["X-Task-ID"],

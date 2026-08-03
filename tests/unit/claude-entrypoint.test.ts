@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  CLAUDE_CLI_USER_AGENT,
   CLAUDE_CLI_VERSION,
   getClaudeEntrypoint,
   claudeCliUserAgent,
@@ -30,6 +31,11 @@ test("getClaudeEntrypoint honors sdk-cli (cc_entrypoint + UA stay consistent)", 
   withEntrypoint("sdk-cli", () => {
     assert.equal(getClaudeEntrypoint(), "sdk-cli");
     assert.equal(claudeCliUserAgent(), `claude-cli/${CLAUDE_CLI_VERSION} (external, sdk-cli)`);
+    assert.equal(
+      CLAUDE_CLI_USER_AGENT,
+      `claude-cli/${CLAUDE_CLI_VERSION} (external, cli)`,
+      "static provider headers must remain CLI-labelled"
+    );
   });
 });
 
