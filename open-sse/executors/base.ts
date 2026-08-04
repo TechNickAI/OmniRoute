@@ -939,14 +939,11 @@ export class BaseExecutor {
 
           const seed = activeCredentials?.accessToken || activeCredentials?.apiKey || "anon";
           const psd = activeCredentials?.providerSpecificData as
-            | Record<string, unknown>
-            | undefined;
+            Record<string, unknown> | undefined;
 
           let identitySource:
-            | "upstream-metadata"
-            | "upstream-header"
-            | "synthesized"
-            | "synthesized-cloaked" = "synthesized";
+            "upstream-metadata" | "upstream-header" | "synthesized" | "synthesized-cloaked" =
+            "synthesized";
           let sessionId: string;
           let deviceId: string;
           let accountUUID: string;
@@ -1181,6 +1178,7 @@ export class BaseExecutor {
         }
 
         mergeUpstreamExtraHeaders(finalHeaders, upstreamExtraHeaders);
+
         const serializedBody = prl.parseBody(bodyString);
         // #4307 — Preserve the non-enumerable tool-name cloak/remap reverse map
         // (`_toolNameMap`, set on the live `transformedBody` by

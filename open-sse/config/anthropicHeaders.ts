@@ -163,6 +163,9 @@ export function claudeCliUserAgent(version: string): string {
   return `claude-cli/${version} (external, ${getClaudeEntrypoint()})`;
 }
 
-export const CLAUDE_CLI_USER_AGENT = claudeCliUserAgent(CLAUDE_CLI_VERSION);
+// Static registry constant — always "cli" regardless of CLAUDE_CC_ENTRYPOINT.
+// getClaudeCliHeaders() uses this for API-key connections; the dynamic entrypoint
+// only applies to native Claude OAuth call sites (see base.ts ccHeaders block).
+export const CLAUDE_CLI_USER_AGENT = `claude-cli/${CLAUDE_CLI_VERSION} (external, cli)`;
 export const CLAUDE_CLI_STAINLESS_PACKAGE_VERSION = "0.94.0";
 export const CLAUDE_CLI_STAINLESS_RUNTIME_VERSION = "v24.3.0";
