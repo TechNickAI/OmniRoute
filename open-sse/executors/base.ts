@@ -1178,13 +1178,7 @@ export class BaseExecutor {
         }
 
         mergeUpstreamExtraHeaders(finalHeaders, upstreamExtraHeaders);
-        // Reassert the configured OAuth billing UA after extra-headers merge.
-        // Operators can set a custom User-Agent in upstreamExtraHeaders, which
-        // mergeUpstreamExtraHeaders will apply — but for native Claude OAuth the
-        // User-Agent must match cc_entrypoint to keep billing header + UA in sync.
-        if (this.provider === "claude" && hasClaudeOAuthToken) {
-          finalHeaders["User-Agent"] = claudeCliUserAgent(CLAUDE_CODE_VERSION);
-        }
+
         const serializedBody = prl.parseBody(bodyString);
         // #4307 — Preserve the non-enumerable tool-name cloak/remap reverse map
         // (`_toolNameMap`, set on the live `transformedBody` by
