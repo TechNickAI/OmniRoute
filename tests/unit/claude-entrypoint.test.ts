@@ -3,7 +3,10 @@ import assert from "node:assert/strict";
 import {
   getClaudeEntrypoint,
   claudeCliUserAgent,
+  CLAUDE_CLI_USER_AGENT,
+  CLAUDE_CLI_VERSION,
 } from "../../open-sse/config/anthropicHeaders.ts";
+import { mergeUpstreamExtraHeaders } from "../../open-sse/executors/base/headers.ts";
 
 const ORIGINAL = process.env.CLAUDE_CC_ENTRYPOINT;
 
@@ -49,4 +52,38 @@ test("getClaudeEntrypoint falls back to cli on an invalid value", () => {
     assert.equal(getClaudeEntrypoint(), "cli");
     assert.equal(claudeCliUserAgent("2.1.158"), "claude-cli/2.1.158 (external, cli)");
   });
+});
+
+// Regression guard: CLAUDE_CLI_USER_AGENT is used in getClaudeCliHeaders() for
+// API-key connections. It must always be "cli" — never reflect CLAUDE_CC_ENTRYPOINT,
+// which is an OAuth-only billing identity knob. Changing this to use claudeCliUserAgent()
+// (dynamic) would leak the sdk-cli entrypoint into non-OAuth credential surfaces.
+test("CLAUDE_CLI_USER_AGENT is always cli regardless of CLAUDE_CC_ENTRYPOINT", () => {
+  assert.equal(CLAUDE_CLI_USER_AGENT, `claude-cli/${CLAUDE_CLI_VERSION} (external, cli)`);
+  assert.ok(
+    !CLAUDE_CLI_USER_AGENT.includes("sdk-cli"),
+    "static registry UA must never carry sdk-cli"
+  );
+});
+
+// Regression guard: mergeUpstreamExtraHeaders can override User-Agent with a custom
+// value set by the operator. For native Claude OAuth, the cc_entrypoint and User-Agent
+// must remain in sync — so the dynamic claudeCliUserAgent() must be reasserted after
+// the extra-headers merge (see base.ts). This test documents the override mechanism.
+test("mergeUpstreamExtraHeaders can override User-Agent; claudeCliUserAgent reassertion restores OAuth UA", () => {
+  const version = "4.0.0";
+  const headers: Record<string, string> = {
+    "User-Agent": claudeCliUserAgent(version),
+  };
+  const expected = `claude-cli/${version} (external, ${getClaudeEntrypoint()})`;
+  assert.equal(headers["User-Agent"], expected);
+
+  // Operator sets a custom User-Agent via upstream extra headers — mergeUpstreamExtraHeaders
+  // will apply it, overriding the OAuth billing UA.
+  mergeUpstreamExtraHeaders(headers, { "User-Agent": "custom-proxy/1.0" });
+  assert.equal(headers["User-Agent"], "custom-proxy/1.0");
+
+  // The fix in base.ts reasserts claudeCliUserAgent after the merge for claude+OAuth paths.
+  headers["User-Agent"] = claudeCliUserAgent(version);
+  assert.equal(headers["User-Agent"], expected, "reassertion restores the OAuth billing UA");
 });
