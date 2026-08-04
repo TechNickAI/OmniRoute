@@ -264,6 +264,7 @@ OmniRoute provides a two-layer defense: request-side injection scanning and resp
 | `OMNIROUTE_PAYLOAD_RULES_PATH`                              | `./config/payloadRules.json` | `open-sse/services/payloadRules.ts` | Path to payload manipulation rules JSON file (per-model/protocol upstream tweaks).                                                                                                                                                                         |
 | `OMNIROUTE_PAYLOAD_RULES_RELOAD_MS`                         | `5000`                       | `open-sse/services/payloadRules.ts` | Reload interval (ms) for hot-reloading the payload rules file. Minimum `1000`.                                                                                                                                                                             |
 | `OMNIROUTE_PREFER_CLAUDE_CODE_FOR_UNPREFIXED_CLAUDE_MODELS` | `false`                      | `open-sse/services/model.ts`        | Opt-in: route bare `claude-*` model IDs from Claude Code clients through the Claude Code OAuth account instead of requiring a provider prefix. Explicit provider prefixes still win. Also configurable via a dashboard toggle on the Claude provider page. |
+| `CLAUDE_CC_ENTRYPOINT`                                      | `cli`                        | `open-sse/config/anthropicHeaders.ts` | Native Claude OAuth billing and User-Agent entrypoint. Accepted values: `cli` and `sdk-cli`. Invalid values fall back to `cli`. API-key requests retain the static `cli` identity. |
 
 ---
 
