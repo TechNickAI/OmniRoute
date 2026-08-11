@@ -12,6 +12,24 @@ const _require = createRequire(import.meta.url);
 
 type DriverLoader = (moduleName: string) => unknown;
 
+// Keep these requests literal. A generic `_require(moduleName)` is compiled by
+// webpack into an empty context module, so a standalone build reports
+// MODULE_NOT_FOUND even when the native package is present under node_modules.
+// Literal requests remain externalized by next.config.mjs and resolve from the
+// runtime image as intended.
+function loadRuntimeDriver(moduleName: string): unknown {
+  switch (moduleName) {
+    case "better-sqlite3":
+      return _require("better-sqlite3");
+    case "node:sqlite":
+      return _require("node:sqlite");
+    case "bun:sqlite":
+      return _require("bun:sqlite");
+    default:
+      return _require(moduleName);
+  }
+}
+
 type NodeSqliteOptions = {
   readOnly?: boolean;
 };
@@ -152,7 +170,7 @@ export function createSyncDriverFactory(load: DriverLoader) {
 }
 
 /** Tenta abrir com better-sqlite3 e node:sqlite sincronamente. Retorna null se ambos falharem. */
-export const tryOpenSync = createSyncDriverFactory(_require);
+export const tryOpenSync = createSyncDriverFactory(loadRuntimeDriver);
 
 /**
  * Pré-inicializa sql.js para um filePath.
