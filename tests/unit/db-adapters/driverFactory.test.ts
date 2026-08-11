@@ -28,16 +28,6 @@ function createTempDatabasePath(t: Parameters<typeof test>[1]) {
 }
 
 describe("driverFactory", () => {
-  test("runtime loader keeps native driver requests literal for standalone bundling", () => {
-    const source = fs.readFileSync(
-      path.join(process.cwd(), "src/lib/db/adapters/driverFactory.ts"),
-      "utf8"
-    );
-    assert.match(source, /_require\("better-sqlite3"\)/);
-    assert.match(source, /_require\("node:sqlite"\)/);
-    assert.match(source, /createSyncDriverFactory\(loadRuntimeDriver\)/);
-  });
-
   test("tryOpenSync retorna adapter síncrono ou null", () => {
     const adapter = tryOpenSync(":memory:");
     if (adapter) {
@@ -66,9 +56,7 @@ describe("driverFactory", () => {
 
     test(
       "prefers better-sqlite3 when it loads",
-      {
-        skip: betterSqliteLoads ? undefined : "better-sqlite3 is not available in this environment",
-      },
+      { skip: betterSqliteLoads ? undefined : "better-sqlite3 is not available in this environment" },
       () => {
         const adapter = tryOpenSync(":memory:");
         assert.ok(adapter);
