@@ -344,14 +344,16 @@ export async function cleanupXpAuditLog(): Promise<CleanupResult> {
 
 /**
  * Clean up old compression_run_telemetry based on retention settings. (#6848)
- * Uses unix-epoch `timestamp` column (INTEGER).
+ * The `timestamp` column stores epoch milliseconds (recordCompressionRun stamps
+ * Date.now()), so the cutoff must be in milliseconds to match. Same unit bug as
+ * domain_cost_history (#9625), which this function was missed by.
  */
 export async function cleanupCompressionRunTelemetry(): Promise<CleanupResult> {
   const db = getDbInstance();
   const retention = getRetentionSettings();
 
   const retentionDays = retention.compressionRunTelemetry;
-  const cutoffEpoch = Math.floor(Date.now() / 1000) - retentionDays * 86_400;
+  const cutoffEpoch = Date.now() - retentionDays * 86_400_000;
 
   const result: CleanupResult = { deleted: 0, errors: 0 };
 
