@@ -1,0 +1,61 @@
+name: Build Standalone Artifact (self-hosted deploy)
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch/tag/SHA to build
+        required: true
+        default: nick/upgrade-v3.8.49-plus-fork
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund --legacy-peer-deps --ignore-scripts
+      - name: Rebuild native modules
+        run: npm rebuild better-sqlite3
+      - name: Build with webpack
+        env:
+          OMNIROUTE_USE_TURBOPACK: "0"
+          NEXT_PUBLIC_BASE_URL: https://omniroute.technick.ai
+          NODE_OPTIONS: --max-old-space-size=8192
+        run: npm run build
+      - name: Build CLI and stamp source SHA
+        env:
+          OMNIROUTE_BUILD_SHA: ${{ github.sha }}
+        run: |
+          npm run build:cli
+          node scripts/build/write-build-sha.mjs || {
+            mkdir -p dist
+            git rev-parse --short HEAD > dist/BUILD_SHA
+          }
+      - name: Verify and package
+        run: |
+          test -s .build/next/standalone/server.js
+          SHORT=$(git rev-parse --short HEAD)
+          NAME="omniroute-standalone-${SHORT}"
+          tar --zstd -cf "${NAME}.tar.zst" .build dist
+          sha256sum "${NAME}.tar.zst" > "${NAME}.tar.zst.sha256"
+          echo "name=${NAME}" >> "$GITHUB_ENV"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.name }}
+          path: |
+            ${{ env.name }}.tar.zst
+            ${{ env.name }}.tar.zst.sha256
+          retention-days: 2
+          compression-level: 0
