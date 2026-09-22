@@ -9,6 +9,7 @@
  */
 
 import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { claudeCliUserAgent } from "../config/anthropicHeaders.ts";
 
 import {
   CLAUDE_CODE_CLIENT_VERSION,
@@ -160,7 +161,7 @@ export async function fetchClaudeBootstrap(accessToken: string): Promise<ClaudeB
       headers: {
         Authorization: `Bearer ${accessToken}`,
         Accept: "application/json",
-        "User-Agent": `claude-cli/${getClaudeCodeVersion()} (external, cli)`,
+        "User-Agent": claudeCliUserAgent(),
         "anthropic-beta": "oauth-2025-04-20",
       },
       signal: ctrl.signal,

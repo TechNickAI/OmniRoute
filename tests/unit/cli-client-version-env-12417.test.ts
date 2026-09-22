@@ -40,8 +40,8 @@ async function withEnv<T>(
   }
 }
 
-test("#12417 Claude pin stays the captured 2.1.258 binary", () => {
-  assert.equal(canonical.CLAUDE_CODE_CLIENT_VERSION, "2.1.258");
+test("#12417 Claude pin stays the captured 2.1.280 binary", () => {
+  assert.equal(canonical.CLAUDE_CODE_CLIENT_VERSION, "2.1.280");
 });
 
 test("#12417 getClaudeCodeClientVersion falls back to the captured pin", async () => {
@@ -51,16 +51,16 @@ test("#12417 getClaudeCodeClientVersion falls back to the captured pin", async (
 });
 
 test("#12417 getClaudeCodeClientVersion honors a safe env override", async () => {
-  await withEnv({ CLAUDE_CODE_CLIENT_VERSION: "2.1.259" }, () => {
-    assert.equal(canonical.getClaudeCodeClientVersion(), "2.1.259");
-    assert.equal(canonical.getClaudeCodeUserAgent("cli"), "claude-cli/2.1.259 (external, cli)");
+  await withEnv({ CLAUDE_CODE_CLIENT_VERSION: "2.1.299" }, () => {
+    assert.equal(canonical.getClaudeCodeClientVersion(), "2.1.299");
+    assert.equal(canonical.getClaudeCodeUserAgent("cli"), "claude-cli/2.1.299 (external, cli)");
     assert.equal(
       canonical.getClaudeCodeUserAgent("sdk-cli"),
-      "claude-cli/2.1.259 (external, sdk-cli)"
+      "claude-cli/2.1.299 (external, sdk-cli)"
     );
     assert.equal(
       canonical.getClaudeCodeClientBillingVersion(),
-      `2.1.259.${canonical.CLAUDE_CODE_CLIENT_BUILD_REVISION}`
+      `2.1.299.${canonical.CLAUDE_CODE_CLIENT_BUILD_REVISION}`
     );
   });
 });
@@ -97,10 +97,10 @@ test("#12417 getGitHubCopilotCliVersion ignores an unsafe env override", async (
 });
 
 test("#12417 getClaudeCliHeaders reads the env at call time", async () => {
-  await withEnv({ CLAUDE_CODE_CLIENT_VERSION: "2.1.259" }, () => {
+  await withEnv({ CLAUDE_CODE_CLIENT_VERSION: "2.1.299" }, () => {
     assert.equal(
       claudeHeaders.getClaudeCliHeaders()["User-Agent"],
-      "claude-cli/2.1.259 (external, cli)"
+      "claude-cli/2.1.299 (external, cli)"
     );
   });
 });
@@ -120,11 +120,11 @@ test("#12417 applyFingerprint Copilot UA follows the env, pin const does not", a
 
 test("#12417 Claude billing pin stays captured while getter follows env", async () => {
   const hdr = await import("../../open-sse/config/anthropicHeaders.ts");
-  await withEnv({ CLAUDE_CODE_CLIENT_VERSION: "2.1.259" }, () => {
+  await withEnv({ CLAUDE_CODE_CLIENT_VERSION: "2.1.299" }, () => {
     assert.equal(hdr.CLAUDE_CLI_BILLING_VERSION, canonical.CLAUDE_CODE_CLIENT_BILLING_VERSION);
     assert.equal(
       hdr.getClaudeCliBillingVersion(),
-      `2.1.259.${canonical.CLAUDE_CODE_CLIENT_BUILD_REVISION}`
+      `2.1.299.${canonical.CLAUDE_CODE_CLIENT_BUILD_REVISION}`
     );
   });
 });
