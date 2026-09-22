@@ -14,11 +14,15 @@ import { claudeCliUserAgent } from "../config/anthropicHeaders.ts";
 import {
   CLAUDE_CODE_CLIENT_VERSION,
   CLAUDE_CODE_SDK_PACKAGE_VERSION,
+  getClaudeCodeClientVersion,
 } from "@/shared/constants/claudeCodeClient";
 
 // ---------- Versions ------------------------------------------------------
 
 export const CLAUDE_CODE_VERSION = CLAUDE_CODE_CLIENT_VERSION;
+export function getClaudeCodeVersion(): string {
+  return getClaudeCodeClientVersion();
+}
 /** Bundled @anthropic-ai/sdk version for the pinned CLI release. */
 export const CLAUDE_CODE_STAINLESS_VERSION = CLAUDE_CODE_SDK_PACKAGE_VERSION;
 

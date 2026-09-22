@@ -5,6 +5,8 @@ import {
   CLAUDE_CODE_CLIENT_VERSION,
   CLAUDE_CODE_RUNTIME_VERSION,
   CLAUDE_CODE_SDK_PACKAGE_VERSION,
+  getClaudeCodeClientBillingVersion,
+  getClaudeCodeClientVersion,
   getClaudeCodeUserAgent,
 } from "@/shared/constants/claudeCodeClient";
 import { modelSupportsContext1mBeta } from "../config/context1m.ts";
@@ -167,8 +169,15 @@ export function normalizeAnthropicHeaderVariants(headers: Record<string, string>
 }
 
 export const CLAUDE_CLI_VERSION = CLAUDE_CODE_CLIENT_VERSION;
+export function getClaudeCliVersion(): string {
+  return getClaudeCodeClientVersion();
+}
 export const CLAUDE_CLI_BUILD_REVISION = CLAUDE_CODE_CLIENT_BUILD_REVISION;
+/** Captured-pin snapshot. Wire billing uses getClaudeCliBillingVersion(). */
 export const CLAUDE_CLI_BILLING_VERSION = CLAUDE_CODE_CLIENT_BILLING_VERSION;
+export function getClaudeCliBillingVersion(): string {
+  return getClaudeCodeClientBillingVersion();
+}
 
 /**
  * Anthropic billing "entrypoint" label sent on native Claude OAuth requests:
@@ -215,6 +224,8 @@ export function claudeCliUserAgent(): string {
 
 // Static registry/API-key identity remains the official CLI wire image.
 // CLAUDE_CC_ENTRYPOINT applies only at native Claude OAuth call sites.
+/** Module-load snapshot of the pin (or env if set before import). Wire UA uses getClaudeCodeUserAgent(). */
 export const CLAUDE_CLI_USER_AGENT = getClaudeCodeUserAgent("cli");
+export { getClaudeCodeUserAgent };
 export const CLAUDE_CLI_STAINLESS_PACKAGE_VERSION = CLAUDE_CODE_SDK_PACKAGE_VERSION;
 export const CLAUDE_CLI_STAINLESS_RUNTIME_VERSION = CLAUDE_CODE_RUNTIME_VERSION;

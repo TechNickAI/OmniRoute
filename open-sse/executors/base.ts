@@ -6,8 +6,8 @@ import {
   type AlternateFormat,
 } from "../config/providers/alternateFormats.ts";
 import {
-  CLAUDE_CLI_BILLING_VERSION,
   CLAUDE_CLI_STAINLESS_RUNTIME_VERSION,
+  getClaudeCliBillingVersion,
   mergeClientAnthropicBeta,
   normalizeAnthropicHeaderVariants,
 } from "../config/anthropicHeaders.ts";
@@ -86,7 +86,7 @@ import {
 } from "../services/contextManager.ts";
 import { randomUUID } from "node:crypto";
 import {
-  CLAUDE_CODE_VERSION,
+  getClaudeCodeVersion,
   CLAUDE_CODE_STAINLESS_VERSION,
   buildUserIdJson,
   getSessionId,
@@ -1164,7 +1164,7 @@ export class BaseExecutor {
 
           // system[0] (billing) and system[1] (sentinel) must not carry
           // cache_control — that belongs on upstream prompt blocks at [2..].
-          const billingLine = `x-anthropic-billing-header: cc_version=${CLAUDE_CLI_BILLING_VERSION}; cc_entrypoint=${getClaudeEntrypoint()}; cch=00000;`;
+          const billingLine = `x-anthropic-billing-header: cc_version=${getClaudeCliBillingVersion()}; cc_entrypoint=${getClaudeEntrypoint()}; cch=00000;`;
           const SENTINEL = "You are Claude Code, Anthropic's official CLI for Claude.";
 
           const sysBlocks: Array<Record<string, unknown>> = Array.isArray(tb.system)
