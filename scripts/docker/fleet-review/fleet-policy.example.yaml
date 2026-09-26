@@ -1,0 +1,70 @@
+version: 1
+namespace: fleet
+
+# Provider-qualified: the same email can be protected on Codex and shared on Claude.
+protectedIdentities:
+  - provider: codex
+    identity: protected-codex@example.invalid
+  - provider: claude
+    identity: protected-claude@example.invalid
+  - provider: claude
+    identity: protected-claude
+
+providers:
+  claude:
+    subscription: true
+  codex:
+    subscription: true
+  openrouter:
+    subscription: false
+
+pools:
+  claude/shared: { provider: claude, label: shared }
+  codex/shared: { provider: codex, label: shared }
+  claude/swarm: { provider: claude, label: swarm }
+  codex/swarm: { provider: codex, label: swarm }
+  codex/emergency: { provider: codex, label: emergency }
+  openrouter/capped: { provider: openrouter, label: capped }
+
+# Synthetic examples only: replace protected identities in an external private policy.
+# Populate reviewed bindings only after the applicable activation gate is complete.
+connections: []
+
+# Import reviewed agent routes later; owner voice/chat routes remain isolated.
+combos: {}
+
+keys:
+  owner:
+    enabled: false
+    pools: [claude/shared, codex/shared]
+    combos: []
+    rateLimits: [{ limit: 60, window: 60 }]
+    expiresAt: null
+  observer:
+    enabled: false
+    pools: [claude/shared, codex/shared]
+    combos: []
+    rateLimits: [{ limit: 10, window: 60 }]
+    expiresAt: null
+  swarm-controller:
+    enabled: false
+    pools: [claude/shared, codex/shared]
+    combos: []
+    rateLimits: [{ limit: 10, window: 60 }]
+    expiresAt: null
+  swarm-workers:
+    enabled: false
+    pools: [claude/shared, codex/shared, codex/emergency]
+    combos: []
+    rateLimits: [{ limit: 6, window: 60 }]
+    expiresAt: null
+
+capabilityOverrides: []
+
+# These are activation gates, not substitutes for provider/orchestrator enforcement.
+gates:
+  emergencyAlertReady: false
+  swarmSingleLaneReady: false
+  openRouterCapVerified: false
+  openRouterDailyCapUsd: 20
+  openRouterNoTrainModels: []

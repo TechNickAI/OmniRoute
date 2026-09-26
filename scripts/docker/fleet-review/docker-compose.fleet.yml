@@ -1,0 +1,91 @@
+name: ${COMPOSE_PROJECT_NAME:-omniroute-fleet}
+
+services:
+  omniroute:
+    image: ${OMNIROUTE_IMAGE:-ghcr.io/deepgem-interactive/omniroute-fleet:3.8.51-fleet.1-local}
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 45s
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 256
+    mem_limit: ${FLEET_MEMORY_LIMIT:-3g}
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+      PORT: "20128"
+      DASHBOARD_PORT: "20128"
+      API_PORT: "20128"
+      OMNIROUTE_HOSTNAME: "0.0.0.0"
+      DATA_DIR: /app/data
+      REQUIRE_API_KEY: "true"
+      JWT_SECRET: ${JWT_SECRET:?Run node init-fleet.mjs first}
+      API_KEY_SECRET: ${API_KEY_SECRET:?Run node init-fleet.mjs first}
+      STORAGE_ENCRYPTION_KEY: ${STORAGE_ENCRYPTION_KEY:?Run node init-fleet.mjs first}
+      INITIAL_PASSWORD: ${INITIAL_PASSWORD:?Run node init-fleet.mjs first}
+      CLAUDE_CC_ENTRYPOINT: sdk-cli
+      OMNIROUTE_MEMORY_MB: ${FLEET_HEAP_MB:-2048}
+      NODE_OPTIONS: ""
+      REDIS_URL: redis://redis:6379
+      APP_LOG_TO_FILE: "false"
+    ports:
+      - "127.0.0.1:${FLEET_PORT:-21128}:20128"
+      # Codex's callback port is fixed by its OAuth configuration.
+      - "127.0.0.1:1455:1455"
+    volumes:
+      - router-data:/app/data
+    networks: [default, state]
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, node, healthcheck.mjs]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+      start_period: 90s
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  redis:
+    image: redis:8.6.5-alpine
+    restart: unless-stopped
+    command:
+      [
+        redis-server,
+        --appendonly,
+        "yes",
+        --appendfsync,
+        everysec,
+        --maxmemory,
+        128mb,
+        --maxmemory-policy,
+        noeviction,
+      ]
+    mem_limit: 256m
+    security_opt: [no-new-privileges:true]
+    volumes:
+      - limiter-data:/data
+    networks: [state]
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+        max-file: "3"
+
+volumes:
+  router-data:
+  limiter-data:
+
+networks:
+  default:
+  state:
+    internal: true
