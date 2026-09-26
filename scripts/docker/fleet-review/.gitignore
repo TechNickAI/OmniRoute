@@ -1,0 +1,9 @@
+node_modules/
+.env*
+*.env
+*.key
+*.sqlite*
+*.db*
+backups/
+backup/
+fleet-policy.yaml

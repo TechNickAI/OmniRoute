@@ -1,0 +1,8 @@
+{
+  "UPSTREAM_REPO": "TechNickAI/OmniRoute",
+  "UPSTREAM_SHA": "486509c71b9890914d78cf2c83a22f967fbb635e",
+  "FLEET_REPO": "DeepGem-Interactive/OmniRoute",
+  "GHCR_NAMESPACE": "deepgem-interactive",
+  "IMAGE_NAME": "omniroute-fleet",
+  "FLEET_VERSION": "3.8.51-fleet.1"
+}
