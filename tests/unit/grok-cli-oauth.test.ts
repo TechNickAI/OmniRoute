@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 
 const { grokCli } = await import("../../src/lib/oauth/providers/grok-cli.ts");
 const { GrokCliExecutor } = await import("@omniroute/open-sse/executors/grok-cli");
-const { getGrokBuildClientVersion } = await import("@omniroute/open-sse/config/grokBuild.ts");
+const { getGrokBuildClientVersion, GROK_BUILD_DEFAULT_CLIENT_VERSION } =
+  await import("@omniroute/open-sse/config/grokBuild.ts");
 const { resolvePublicCred } = await import("@omniroute/open-sse/utils/publicCreds");
 
 test("Grok Build OAuth Provider - config", () => {
@@ -16,7 +17,7 @@ test("Grok Build OAuth Provider - config", () => {
     "clientId must resolve from the embedded grok_id default"
   );
   assert.equal(grokCli.config.tokenUrl, "https://auth.x.ai/oauth2/token");
-  assert.equal(getGrokBuildClientVersion(), "0.2.106");
+  assert.equal(getGrokBuildClientVersion(), GROK_BUILD_DEFAULT_CLIENT_VERSION);
 });
 
 test("publicCreds: grok_id embedded default is present and decodes", () => {
