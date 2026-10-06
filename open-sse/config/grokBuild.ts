@@ -8,7 +8,15 @@ export const GROK_BUILD_OAUTH_ISSUER = "https://auth.x.ai";
 export const GROK_BUILD_DEVICE_CODE_URL = `${GROK_BUILD_OAUTH_ISSUER}/oauth2/device/code`;
 export const GROK_BUILD_TOKEN_URL = `${GROK_BUILD_OAUTH_ISSUER}/oauth2/token`;
 
-export const GROK_BUILD_DEFAULT_CLIENT_VERSION = "1.0.41";
+// Real Grok CLI identity, captured off the wire from the signed @xai-official/grok
+// 1.0.46 binary (`User-Agent: grok-shell/1.0.46 (<os>; <arch>)`). xAI's
+// cli-chat-proxy enforces a minimum here and raises it without notice: on
+// 2026-09-30 it began returning 426 "Your Grok CLI version (0.2.106) is outdated.
+// Please update to version 1.0.13 or later". Overridable per-deployment via
+// GROK_CLI_CLIENT_VERSION so the next floor bump is an .env edit, not a rebuild.
+export const GROK_BUILD_DEFAULT_CLIENT_VERSION = "1.0.46";
+export const GROK_BUILD_CLIENT_VERSION_ENV = "GROK_CLI_CLIENT_VERSION";
+const SAFE_GROK_CLIENT_VERSION_PATTERN = /^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][A-Za-z0-9.]{1,24})?$/;
 export const GROK_BUILD_DEFAULT_CONTEXT_WINDOW = 256_000;
 export const GROK_BUILD_DEFAULT_REASONING_EFFORT = "high";
 export const GROK_BUILD_SUPPORTED_REASONING_EFFORTS = Object.freeze([
@@ -68,6 +76,11 @@ function mapArch(arch: string): string {
 }
 
 export function getGrokBuildClientVersion(): string {
+  const raw = process.env[GROK_BUILD_CLIENT_VERSION_ENV];
+  if (typeof raw === "string") {
+    const normalized = raw.trim();
+    if (normalized && SAFE_GROK_CLIENT_VERSION_PATTERN.test(normalized)) return normalized;
+  }
   return GROK_BUILD_DEFAULT_CLIENT_VERSION;
 }
 
