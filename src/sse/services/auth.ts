@@ -91,6 +91,8 @@ import { isOpencodeFreeTierSkipped } from "@omniroute/open-sse/services/opencode
 import { isLocalProvider } from "@omniroute/open-sse/config/providerRegistry.ts";
 import { COOLDOWN_MS, RateLimitReason } from "@omniroute/open-sse/config/constants.ts";
 import * as oauthAuthBackoff from "./oauthAuthFailureBackoff.ts";
+import * as revokedOAuthBench from "./revokedOAuthBench.ts";
+import { logAuditEvent } from "@/lib/compliance/index";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/errorSanitization.ts";
 import {
   honorsRuleLockScope,
@@ -2768,6 +2770,16 @@ export async function markAccountUnavailable(
       }
     }
 
+    // Revoked-login streak: recorded here, after the duplicate-mark guards (a failure absorbed by
+    // an active cooldown is not a new observation) and before every status-specific early return,
+    // so ANY other marked failure (ordinary 401, 429, 5xx, 400) breaks the streak.
+    const revokedVerdict = revokedOAuthBench.recordFailure(
+      connectionId,
+      status,
+      errorText,
+      conn?.authType
+    );
+
     // #10460: model-unsupported 400 — the PROVIDER does not serve this model, not
     // this account. Cooling down the account and rotating to the next one wastes an
     // upstream call because all accounts share the same model catalog. Return
@@ -3225,6 +3237,33 @@ export async function markAccountUnavailable(
     ) {
       terminalStatus = null;
     }
+    // A revoked login 401s with a token that is still inside its expiry window, so the check
+    // above un-parks it and it would only ever cool down for ≤2 min. After N consecutive
+    // revoked-token 401s (streak recorded above), park it as expired and raise one alert so a
+    // human re-authenticates.
+    if (revokedVerdict.bench) {
+      terminalStatus = "expired";
+      if (revokedVerdict.alert) {
+        const label = connectionId.slice(0, 8);
+        log.error(
+          "AUTH",
+          `BENCHED ${provider}:${label} — ${revokedVerdict.streak} consecutive revoked-login 401s ("invalidated oauth token"). Connection parked as expired; re-authenticate it to restore.`
+        );
+        logAuditEvent({
+          action: "provider.connection.benched",
+          actor: "system",
+          target: `${provider}:${label}`,
+          resourceType: "provider_connection",
+          status: "benched",
+          details: {
+            connectionId,
+            provider,
+            reason: revokedOAuthBench.REVOKED_OAUTH_ERROR_TYPE,
+            consecutive401s: revokedVerdict.streak,
+          },
+        });
+      }
+    }
     // A known 5xx is a server failure, not a quota verdict (e.g. Cursor's empty-turn
     // hint): never park it until a cached quota reset weeks away.
     const cachedQuotaResetAt =
@@ -3374,7 +3413,9 @@ export async function markAccountUnavailable(
 
     const baseUpdate = {
       lastError: errorMsg,
-      lastErrorType: providerErrorType,
+      lastErrorType: revokedVerdict.bench
+        ? revokedOAuthBench.REVOKED_OAUTH_ERROR_TYPE
+        : providerErrorType,
       errorCode: status,
       lastErrorAt: new Date().toISOString(),
       backoffLevel: newBackoffLevel ?? backoffLevel,
@@ -3443,6 +3484,7 @@ export async function clearAccountError(
   currentConnection: Partial<RecoverableConnectionState>
 ) {
   oauthAuthBackoff.resetStreak(connectionId);
+  revokedOAuthBench.resetStreak(connectionId);
   // Only update if currently has error status
   const hasError =
     (currentConnection.testStatus && currentConnection.testStatus !== "active") ||
