@@ -40,12 +40,12 @@ test("Claude CLI version constants are in lockstep across all 4 sources", () => 
   );
 });
 
-test("Claude CLI wire versions match the captured 2.1.280 binary", () => {
-  assert.equal(canonical.CLAUDE_CODE_CLIENT_VERSION, "2.1.280");
-  assert.equal(canonical.CLAUDE_CODE_CLIENT_BUILD_REVISION, "d7b");
-  assert.equal(canonical.CLAUDE_CODE_CLIENT_BILLING_VERSION, "2.1.280.d7b");
-  assert.equal(canonical.CLAUDE_CODE_SDK_PACKAGE_VERSION, "0.112.1");
-  assert.equal(canonical.CLAUDE_CODE_RUNTIME_VERSION, "v26.3.0");
+test("Claude CLI wire versions match the captured 2.1.321 binary", () => {
+  assert.equal(canonical.CLAUDE_CODE_CLIENT_VERSION, "2.1.321");
+  assert.equal(canonical.CLAUDE_CODE_CLIENT_BUILD_REVISION, "cf7");
+  assert.equal(canonical.CLAUDE_CODE_CLIENT_BILLING_VERSION, "2.1.321.cf7");
+  assert.equal(canonical.CLAUDE_CODE_SDK_PACKAGE_VERSION, "0.128.0");
+  assert.equal(canonical.CLAUDE_CODE_RUNTIME_VERSION, "v26.12.1");
   assert.equal(
     compat.CLAUDE_CODE_COMPATIBLE_STAINLESS_PACKAGE_VERSION,
     canonical.CLAUDE_CODE_SDK_PACKAGE_VERSION
