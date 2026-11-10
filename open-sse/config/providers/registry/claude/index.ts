@@ -38,6 +38,18 @@ export const claudeProvider: RegistryEntry = {
       supportsVision: true,
       unsupportedParams: ["temperature", "top_p", "top_k"],
     },
+    // Listed after 5.1 so the bare cc/anthropic default stays on 5.1 (same rule as Opus 5.5, #14612).
+    {
+      id: "claude-fable-5-2",
+      name: "Claude Fable 5.2",
+      contextLength: 1000000,
+      maxOutputTokens: 128000,
+      supportsReasoning: true,
+      supportedThinkingEfforts: ["low", "medium", "high", "xhigh", "max"],
+      supportsXHighEffort: true,
+      supportsVision: true,
+      unsupportedParams: ["temperature", "top_p", "top_k"],
+    },
     {
       id: "claude-fable-5",
       name: "Claude Fable 5",
